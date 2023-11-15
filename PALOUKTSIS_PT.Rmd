@@ -1,0 +1,149 @@
+---
+title: "PALOUKTSIS_PT"
+author: "Dimitris"
+date: "2023-10-10"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+#Task 1
+
+#Loads the Data
+dataLogistics <- read.csv(file ="Logistics.txt", header = TRUE, sep = ",")
+
+```
+```{r}
+#Task 2
+
+#Find the missing values
+missing_observations <- sum(is.na(dataLogistics))
+missing_observations
+
+
+#Delete missing values
+dataLogistics <- na.omit(dataLogistics)
+
+```
+```{r}
+#Task 3
+
+#Find the heaviest unit id
+max_weight_id <- dataLogistics$id[which(dataLogistics$pal_weight==max(dataLogistics$pal_weight))]
+max_weight_id
+
+
+#Find the min_height
+min_height <- min(dataLogistics$pal_height)
+
+#Count for how many rows the value of pal_height is equal to the minimum
+length(which(dataLogistics$pal_height == min_height))
+
+```
+```{r}
+#Task 4
+
+#Create the boxplot with pal_weight as y and expire_date as x
+boxplot(pal_weight ~ expire_date, data = dataLogistics)
+#Draw a line at y = 200
+abline(h = 200, col = "green")
+
+```
+```{r}
+#Task 5
+
+#Find the prices above zero
+nonzero_price <- dataLogistics$unit_price[dataLogistics$unit_price > 0]
+#Find the units_per_pal that have nonzero prices
+upp <- dataLogistics$units_per_pal[dataLogistics$unit_price > 0]
+#Multiply the unit_price with units per pallet and with total amount of pallets sold
+money_earned <- nonzero_price*upp*dataLogistics$total_outbound[dataLogistics$unit_price>0]
+sum(money_earned)
+
+```
+
+```{r}
+#Task 6
+
+#Filter the initial dataframe according to the conditions
+filtered_data <- dataLogistics[dataLogistics$pal_weight>0 & dataLogistics$units_per_pal>0 ,]
+#Get the min weight of the new filtered dataframe
+min_weight <- min(filtered_data$pal_weight)
+#Go back to the initial dataframe and find its id
+min_weight_id <- dataLogistics$id[dataLogistics$pal_weight==min_weight]
+min_weight_id
+
+```
+```{r}
+#Task 7
+
+#Delete unwanted values
+dataLogistics2 <- dataLogistics[dataLogistics$expire_date!=0, ]
+
+#Find the heaviest unit value
+max_weight <- max(dataLogistics2$pal_weight)
+#Find its id
+max_weight_id2 <- dataLogistics2$id[dataLogistics2$pal_weight==max_weight]
+max_weight_id2
+
+```
+
+```{r}
+#Task 8
+
+#Create a matrix
+new_matrix <- cbind("outbound_number" = dataLogistics2$outbound_number,
+                    "total_outbound" = dataLogistics2$total_outbound)
+
+#Use the apply function for the columns of the matrix to find the avg by column
+avg_vector_col <- apply(new_matrix, 2, mean)
+avg_vector_col
+
+
+```
+
+```{r}
+#Task 9
+
+#Create a scatterplot
+plot(dataLogistics2$pal_weight, dataLogistics2$pal_height, xlab = "Pallet Weight",
+    ylab = "Pallet Height", yaxt ="n",
+    main = "Weight and Height of Pallets",
+    col = ifelse(dataLogistics2$pal_height > 1, "black", "red"))
+
+abline(h = 1, lty = 2)
+axis(2, las=2)
+
+```
+
+```{r}
+#Task 10
+
+dataLogistics2$quality <- ifelse(dataLogistics2$unit_price > 15, "Very Good", "Good" )
+
+#Create a grouped barplot
+barplot(table(dataLogistics2$quality, dataLogistics2$expire_date),
+        beside = TRUE,
+        col = c("orange", "green"),
+        names.arg = sort(unique(dataLogistics2$expire_date)),
+        xlab = "Remaining days on the shelf(exp_date)",
+        ylab = "Amount of Units",
+        main = "Quality and Expire Date")
+
+#Create a legend to add to the plot
+legend("topright", legend = unique(dataLogistics2$quality), fill = c("orange", "green"))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

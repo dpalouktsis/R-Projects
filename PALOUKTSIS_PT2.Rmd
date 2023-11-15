@@ -1,0 +1,300 @@
+---
+title: "PALOUKTSIS_PT"
+author: "Dimitris"
+date: "2023-10-15"
+output:
+  html_document: default
+  pdf_document: default
+---
+```{r}
+#Task 1
+
+#Loads the Data
+Drugs <- read.csv(file ="Drugs.txt", header = TRUE, sep = ",")
+
+#Delete column FLAG_CODES by index
+Drugs <- Drugs[,-6]
+
+```
+```{r}
+#Task 2
+
+#Find number of countries
+no_of_countries <- (unique(Drugs$LOCATION))
+length(no_of_countries)
+
+#Create a frequency table for each country
+years_per_country <- table(Drugs$LOCATION)
+
+#Get the indexes of the desired ascending table
+ordered_years_per_country <- order(years_per_country)
+
+#Create a new table based on the indexes
+ascending_years_per_country <- years_per_country[ordered_years_per_country]
+
+```
+```{r}
+#Task 3
+
+#Get the number of observations above from which countries belong to the top 13%
+percentage_value <- quantile(ascending_years_per_country, 0.87)
+
+#Get the name of these countries
+top13_countries_names <- names(ascending_years_per_country[ascending_years_per_country 
+                                                           >= percentage_value])
+
+#Make a subset based on them
+final_selection_table <- subset(Drugs, Drugs$LOCATION %in% top13_countries_names)
+
+```
+
+```{r, fig.width = 10, fig.height = 10}
+#Task 4
+
+#Define the variables and titles
+y_vars <- c("PC_HEALTHXP", "PC_GDP", "USD_CAP", "TOTAL_SPEND")
+plot_mains <- c("Drug spending in PC_HEALTHXP", "Drug spending in PC_GDP",
+                "Drug spending in USD_CAP", "Drug spending in TOTAL_SPEND")
+
+#Set up new x-axis limits based on Years
+lims_of_x <- c(range(final_selection_table$TIME))
+
+#Set up the format of the plot(2x2)
+par(mfrow = c(2, 2))
+
+#Iterate through each metric to create a plot for each
+for (i in 1:4) {
+  
+  #Select the metric variable and title for the current plot
+  temp_metric <- y_vars[i]
+  plot_title <- plot_mains[i]
+  
+  #Take the names of the countries only once
+  unique_countries <- unique(final_selection_table$LOCATION)
+  
+  #Create a plot with Years, the current metric and the limits of x
+  plot(final_selection_table$TIME, final_selection_table[[temp_metric]],
+       type = "n", xlab = "Years", ylab = temp_metric,
+  xlim = lims_of_x, main = plot_title, cex.main = 1.1, cex.lab = 1.1, cex.axis = 1.1)
+  
+  #Create a vector with different colors for each country
+  colors <- rainbow(length(unique_countries))
+  for (j in 1:length(unique_countries)) {
+    country <- unique_countries[j]
+    country_data <- subset(final_selection_table, LOCATION == country)
+    lines(country_data$TIME, country_data[[temp_metric]],
+          type = "l", col = colors[j], lwd = 2.5)
+  }
+  
+  #Create a legend
+  legend("topleft", legend = unique_countries, fill = colors, bty = "n", cex = 1.1)
+}
+
+
+
+```
+
+```{r}
+#Task 5
+
+#We want to do the following procedure for 4 expenditure metrics for Greece
+metric <- c("PC_HEALTHXP", "PC_GDP", "USD_CAP","TOTAL_SPEND")
+condition <- Drugs$LOCATION=="GRC"
+
+#We initialize a list for Greece. Later we will add more columns to it
+greece_list <- list(
+  Data <- Drugs[condition,],
+  Years <- c(min(Drugs$TIME[condition]), max(Drugs$TIME[condition])),
+  DataPoints <- nrow(Drugs[condition,])
+)
+
+#Create an empty vector to store the probabilities for each expenditure metric
+probability_vector <- numeric(length(metric))
+
+#Loop through the metric
+for (i in 1:length(metric)) {
+  less <- 0
+  more <- 0
+  title_of_metric <- metric[i]
+  
+  #We want -1 comparisons than the total observations(e.g. n years, n-1 comparisons)
+  for (j in 1:(length(Drugs[[title_of_metric]][condition]) - 1)) {
+    current_value <- Drugs[[title_of_metric]][condition][j]
+    next_value <- Drugs[[title_of_metric]][condition][j + 1]
+  
+    if (current_value < next_value) {
+      more <- more + 1
+    } else {
+      less <- less + 1
+    }
+  }
+  
+  #Calculate the probability of increase for the current metric
+  probability_vector[i] <- more / (more + less)
+  
+  #Give a title to the probability
+  names(probability_vector)[i] <- 
+    paste("Yearly probabilities of increase in expenditure of", title_of_metric)
+}
+
+probability_vector
+
+#We add the vector to the list of Greece
+greece_list$YearlyProbs <- probability_vector
+
+#The same procedure but we calculate the probability that 4/5 or 5/5 years have an increase
+metric2 <- c("PC_HEALTHXP", "PC_GDP", "USD_CAP","TOTAL_SPEND")
+
+#Create an empty vector to store the probabilities for each expenditure metric
+probability_vector2 <- numeric(length(metric2))
+
+for (i in 1:length(metric2)) {
+  title_of_metric2 <- metric2[i]
+  #Calculate the probability of increase for the current metric, 
+  #We could also use "1 - sum(dbinom(0:3))"
+  probability_vector2[i] <- sum(dbinom(4:5, size = 5, prob = greece_list$YearlyProbs[i]))
+  
+  #Give a title to the probability
+  names(probability_vector2)[i] <- 
+    paste("Probability of increase in drug expenditure in at least 4 of the 5 following years of",     title_of_metric2)
+}
+
+probability_vector2
+
+#We add the vector to the list of Greece
+greece_list$FiverYearsProbs <- probability_vector2
+
+greece_list
+
+```
+
+```{r}
+#Task 6
+
+#During the function, the values that the user can input are being tested
+#Also the values that can be inserted from code are also tested
+
+#Define the function
+calculateProbability <- function(COUNTRY = NULL, METRIC = "PC_HEALTHXP", nofY = 5) {
+  
+  #If country is not given, return an error message
+  if (is.null(COUNTRY) || COUNTRY == "") {
+    return("Error: You did not provide me a Country or Country is NUll")
+  }
+  
+  #If Country value is not one in the dataframe
+  if (!(COUNTRY %in% Drugs$LOCATION)) {
+    return("The country does not exist")
+  }
+  
+  #Find the country in the initial dataframe
+  condition <- Drugs$LOCATION == COUNTRY
+  
+  #Find available years
+  available_years <- sum(condition)
+  
+  #If there are less than 10 years, return an error message
+  if (available_years < 10) {
+    return("Cannot calculate probability because n<10")
+  }
+  
+  #If METRIC is not one of the valid metrics
+  if (!(METRIC %in% c("PC_HEALTHXP", "PC_GDP", "USD_CAP", "TOTAL_SPEND"))) {
+    return("The metric does not exist")
+  }
+  
+  if (nofY < 2) {
+    return("Error: Enter a number greater than or equal to 2")
+  }
+  
+  #Store the data of the chosen Country
+  exported_data <- Drugs[Drugs$LOCATION == COUNTRY, ]
+  
+  #Calculate yearly probability of increase for the metric given
+  less <- 0
+  more <- 0
+  title_of_metric <- METRIC
+  
+  #Extract the data for the specific metric and condition
+  metric_data <- exported_data[[title_of_metric]]
+
+  #Calculate the differences between consecutive values
+  differences <- diff(metric_data)
+
+  #Count the number of times diff is positive
+  more <- sum(differences > 0)
+
+  #Count the number of times diff is negative or 0
+  less <- sum(differences <= 0)
+  
+  #Calculate the probability of increase for the current metric
+  probability_yearly <- more / (more + less)
+  
+  #Calculate five-year probability for the current metric
+  probability_five_years <- sum(dbinom((nofY - 1):nofY, size = nofY, prob = probability_yearly))
+  
+  #Get the range of available years
+  minYear <- min(Drugs$TIME[condition])
+  maxYear <- max(Drugs$TIME[condition])
+  
+  #Form the print sentence
+  output <- paste("Based on", available_years, "datapoints from years", minYear, 
+                 "to", maxYear, ", the probability that", COUNTRY, 
+                 "will increase its drug expenditure, in terms of", METRIC,
+                 ", in at least", (nofY - 1), "years in the period",
+                 (maxYear + 1), "to", (maxYear + 1 + nofY), "is", probability_five_years)
+  
+  return(output)
+}
+
+#Ask input from the user
+COUNTRY <- readline("Enter the country code:")
+METRIC <- readline("Enter a metric:")
+
+#If METRIC is empty then set the default value since it's an optional argument
+if (!nzchar(METRIC)) {
+  METRIC <- "PC_HEALTHXP"
+}
+
+nofY_input <- as.numeric(readline("Enter the number of years:"))
+
+#Check if nofY_input is not provided or is NULL, then set the default value
+if (is.null(nofY_input) || is.na(nofY_input)) {
+  nofY_input <- 5
+  nofY <- 5 #Set the default value to 5
+} else {
+  nofY <- as.integer(nofY_input)
+}
+
+#Call the function based on the above values 
+#Should be tested with user inputs in R Console
+result <- calculateProbability(COUNTRY, METRIC, nofY)
+print(result)
+
+#Some examples of different cases of the function usage
+grc_example <- calculateProbability("GRC", "TOTAL_SPEND", 5)
+print(grc_example)
+
+null_country_example <- calculateProbability(NULL,"PC_GDP", 8)
+print(null_country_example)
+
+default_metric_example <- calculateProbability("ITA", ,3)
+print(default_metric_example)
+
+less_than_10_years_example <- calculateProbability("ISR", "USD_CAP", 2)
+print(less_than_10_years_example)
+
+default_nofY_and_metric_example <- calculateProbability("GBR", , )
+print(default_nofY_and_metric_example)
+
+nofY_less_than_2_example <- calculateProbability("ESP", "PC_HEALTHXP", 1)
+print(nofY_less_than_2_example)
+
+```
+
+
+
+
+
+
+
